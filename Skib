@@ -1,16 +1,51 @@
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local VirtualInputManager = game:GetService("VirtualInputManager")
+local RunService = game:GetService("RunService")
 local LocalPlayer = Players.LocalPlayer
 
 local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
 local RootPart = Character:WaitForChild("HumanoidRootPart")
+local Camera = workspace.CurrentCamera
 
--- Đường dẫn chính xác đến khu vực Summon lấy từ bảng quét
-local summonArea = workspace:FindFirstChild("InteractZones") and workspace.InteractZones:FindFirstChild("Summon")
+-- 1. Vòng lặp Auto Click chạy ngầm liên tục
+task.spawn(function()
+    local count = 0
+    while true do
+        count = count + 1
+        pcall(function()
+            local vp = Camera.ViewportSize
+            local x, y = vp.X * 0.65, vp.Y * 0.65
+            VirtualInputManager:SendMouseButtonEvent(x, y, 0, true, game, 1)
+            task.wait(0.1)
+            VirtualInputManager:SendMouseButtonEvent(x, y, 0, false, game, 1)
+        end)
+        
+        if count < 5 then task.wait(10) else task.wait(300) end
+    end
+end)
 
-if summonArea then
-    local targetCFrame = summonArea:IsA("Model") and summonArea:GetPrimaryPartCFrame() or summonArea.CFrame
+print("Đã bật tính năng Auto Click thành công!")
+
+-- 2. Vòng lặp luôn luôn bấm phím E liên tục
+task.spawn(function()
+    while true do
+        pcall(function()
+            VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.E, false, game)
+            task.wait(0.1)
+            VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.E, false, game)
+        end)
+        task.wait(2)
+    end
+end)
+
+print("Đã bật chế độ luôn luôn bấm phím E!")
+
+-- 3. Phần Tween bay đến AFKChamber và tích hợp quay góc nhìn sang trái
+local afkChamber = workspace:FindFirstChild("InteractZones") and workspace.InteractZones:FindFirstChild("AFKChamber")
+
+if afkChamber then
+    local targetCFrame = afkChamber:IsA("Model") and afkChamber:GetPrimaryPartCFrame() or afkChamber.CFrame
     
     local distance = (RootPart.Position - targetCFrame.Position).Magnitude
     local speed = 150 
@@ -20,16 +55,18 @@ if summonArea then
     local tween = TweenService:Create(RootPart, tweenInfo, {CFrame = targetCFrame + Vector3.new(0, 3, 0)})
     
     tween:Play()
-    print("Đang bay đến khu vực Summon...")
-
+    print("Đang bay đến khu vực AFK...")
     tween.Completed:Wait()
-    task.wait(0.5) 
+    print("Đã đến khu vực AFK!")
     
-    VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.E, false, game)
-    task.wait(0.1)
-    VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.E, false, game)
-    
-    print("Đã đến khu vực Summon và bấm phím E thành công!")
+    -- Quay góc nhìn sang trái (xoay camera cộng thêm góc theo trục Y, ví dụ quay 90 độ sang trái)
+    task.wait(0.5)
+    pcall(function()
+        -- Lấy góc hiện tại của Camera và xoay thêm một góc sang trái (Math.rad(90) là 90 độ, muốn quay nhiều hơn thì đổi số 90)
+        local currentCFrame = Camera.CFrame
+        Camera.CFrame = currentCFrame * CFrame.Angles(0, math.rad(90), 0)
+    end)
+    print("Đã quay góc nhìn sang trái!")
 else
-    print("Không tìm thấy khu vực Summon trong InteractZones!")
+    print("Không tìm thấy AFKChamber để bay tới, nhưng E và Click vẫn chạy bình thường.")
 end
